@@ -1,0 +1,69 @@
+name: React Native CI
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  setup:
+    name: Download dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+      - name: Set up Node environment
+        uses: actions/setup-node@v3
+      - name: Cache node modules
+        uses: actions/cache@v3
+        id: cache-node-modules
+        with:
+          path: '**/node_modules'
+          key: yarn-${{ hashFiles('**/yarn.lock') }}
+      - name: Install node modules if cache not present
+        run: yarn install
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+      - name: Restore node modules from cache
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: yarn-${{ hashFiles('**/yarn.lock') }}
+      - run: mkdir -p ~/reports
+      - name: Lint
+        run: yarn lint
+      - name: Prettier
+        run: yarn format
+      - name: Upload linting report
+        uses: actions/upload-artifact@v3
+        with:
+          name: lint-report
+          path: ~/reports/eslint.xml
+
+  # test:
+  #   name: Unit Tests
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       working-directory: ./Lingo
+  #   needs: setup
+  #   steps:
+  #     - name: Check out Git repository
+  #       uses: actions/checkout@v3
+  #     - name: Restore node modules from cache
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: '**/node_modules'
+  #         key: npm-${{ hashFiles('**/package-lock.json') }}
+  #     - name: Jest
+  #       run: npm run test:ci
+  #     - name: Generate coverage report
+  #       uses: romeovs/lcov-reporter-action@v0.2.16
+  #       with:
+  #         lcov-file: ./coverage/lcov.info
